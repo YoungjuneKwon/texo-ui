@@ -44,6 +44,16 @@ function renderCell(value: unknown, type: string): JSX.Element {
   return <span>{String(value ?? '')}</span>;
 }
 
+function compareValues(a: unknown, b: unknown): number {
+  if (a === b) {
+    return 0;
+  }
+  if (typeof a === 'number' && typeof b === 'number') {
+    return a > b ? 1 : -1;
+  }
+  return String(a ?? '') > String(b ?? '') ? 1 : -1;
+}
+
 export function AutoDashboard({
   attributes,
   onAction,
@@ -71,10 +81,8 @@ export function AutoDashboard({
     return [...filtered].sort((a, b) => {
       const av = a[sortField];
       const bv = b[sortField];
-      if (av === bv) {
-        return 0;
-      }
-      return av > bv ? (sortAsc ? 1 : -1) : sortAsc ? -1 : 1;
+      const compared = compareValues(av, bv);
+      return sortAsc ? compared : -compared;
     });
   }, [attributes.data, query, sortAsc, sortField]);
 

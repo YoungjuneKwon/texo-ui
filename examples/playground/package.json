@@ -1,0 +1,24 @@
+{
+  "name": "@texo/playground",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "serve": "vite build && npx serve dist -s -l 3000"
+  },
+  "dependencies": {
+    "@texo/core": "^0.0.1",
+    "@texo/data-adapter": "^0.0.1",
+    "@texo/react": "^0.0.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.30.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.4.1",
+    "serve": "^14.2.4"
+  }
+}

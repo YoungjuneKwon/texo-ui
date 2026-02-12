@@ -45,9 +45,10 @@ export function ExpenseList({
     const setup = async (): Promise<void> => {
       adapter.registerDriver(new LocalStorageDriver());
       if (source === 'google-drive') {
-        adapter.registerDriver(
-          new GoogleDriveDriver({ auth: { clientId: 'google-client-id-required' } }),
-        );
+        const clientId =
+          (import.meta as unknown as { env?: { VITE_GOOGLE_CLIENT_ID?: string } }).env
+            ?.VITE_GOOGLE_CLIENT_ID ?? '';
+        adapter.registerDriver(new GoogleDriveDriver({ auth: { clientId } }));
       }
 
       try {
