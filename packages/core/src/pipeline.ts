@@ -1,17 +1,47 @@
 import { ASTBuilder } from './ast';
 import { StreamParser } from './parser';
 import type { ASTNode, RootNode } from './ast';
+import { RecoveryManager, type RecoveryConfig } from './recovery';
+import type { ParserOptions } from './types';
 
 type PipelineListener = (ast: RootNode, dirty: ASTNode[]) => void;
 
+export interface PipelineOptions extends ParserOptions {
+  recovery?: Partial<RecoveryConfig>;
+}
+
 export class TexoPipeline {
-  private parser = new StreamParser();
-  private builder = new ASTBuilder();
+  private recoveryManager: RecoveryManager;
+  private parser: StreamParser;
+  private builder: ASTBuilder;
   private listeners = new Set<PipelineListener>();
   private lastDirtyNodes: ASTNode[] = [];
 
-  push(chunk: string): void {
-    for (const token of this.parser.feed(chunk)) {
+  constructor(options?: PipelineOptions) {
+    this.recoveryManager = new RecoveryManager(options?.recovery);
+    const recoveryConfig = this.recoveryManager.getConfig();
+    this.parser = new StreamParser({
+      emitInlineTokens: options?.emitInlineTokens,
+      maxBufferSize: options?.maxBufferSize ?? recoveryConfig.maxBufferSize,
+      onBufferOverflow: (position) => {
+        recoveryConfig.onRecovery?.({
+          type: 'buffer-overflow',
+          message: 'Parser buffer exceeded limit. Forcing partial flush.',
+          position,
+          recoveryAction: 'Partial line emitted as paragraph and buffer reset.',
+        });
+      },
+    });
+    this.builder = new ASTBuilder({ recoveryManager: this.recoveryManager });
+  }
+
+  push(chunk: unknown): void {
+    const input = this.recoveryManager.validateInput(chunk);
+    if (!input) {
+      return;
+    }
+
+    for (const token of this.parser.feed(input)) {
       this.builder.addToken(token);
     }
     this.publishIfDirty();
@@ -39,6 +69,7 @@ export class TexoPipeline {
     for (const token of this.parser.flush()) {
       this.builder.addToken(token);
     }
+    this.builder.handleStreamEnd();
     this.publishIfDirty();
   }
 

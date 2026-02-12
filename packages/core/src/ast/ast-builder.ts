@@ -3,6 +3,7 @@ import type { ParserEvent } from '../types';
 import { parseCodeFence } from '../parser/tokenizers/code-block';
 import { parseDirectiveHeader } from '../parser/tokenizers/directive';
 import { parseHeading } from '../parser/tokenizers/heading';
+import { RecoveryManager } from '../recovery/recovery-manager';
 import { DeterministicIdGenerator } from './id-generator';
 import type {
   ASTNode,
@@ -96,6 +97,11 @@ function parseInlineToken(token: ParserEvent, id: string): ASTNode {
 interface StreamingDirectiveState {
   node: DirectiveNode;
   lastValidBodyAttributes: Record<string, unknown>;
+  openedAt: number;
+}
+
+interface ASTBuilderOptions {
+  recoveryManager?: RecoveryManager;
 }
 
 export class ASTBuilder {
@@ -106,8 +112,10 @@ export class ASTBuilder {
   private activeList: ListNode | null = null;
   private activeCodeBlock: CodeBlockNode | null = null;
   private activeDirective: StreamingDirectiveState | null = null;
+  private recoveryManager?: RecoveryManager;
 
-  constructor() {
+  constructor(options?: ASTBuilderOptions) {
+    this.recoveryManager = options?.recoveryManager;
     this.root = {
       id: this.idGenerator.next('root'),
       type: 'root',
@@ -201,6 +209,24 @@ export class ASTBuilder {
 
   hasStreamingDirectives(): boolean {
     return this.activeDirective !== null;
+  }
+
+  handleStreamEnd(): void {
+    if (!this.activeDirective) {
+      return;
+    }
+
+    const directive = this.activeDirective.node;
+    directive.status = 'complete';
+    directive.meta = { ...(directive.meta ?? {}), recovered: true };
+    this.dirtyIds.add(directive.id);
+    this.recoveryManager?.getConfig().onRecovery?.({
+      type: 'unclosed-directive',
+      message: 'Directive was not closed. Auto-closing at stream end.',
+      position: directive.position,
+      recoveryAction: 'Set directive status to complete with recovered meta.',
+    });
+    this.activeDirective = null;
   }
 
   reset(): void {
@@ -364,6 +390,9 @@ export class ASTBuilder {
     this.activeList = null;
 
     const header = parseDirectiveHeader(token.raw);
+    if (!header) {
+      this.recoveryManager?.reportInvalidDirective(token.position);
+    }
     const directive: DirectiveNode = {
       id: this.idGenerator.next('directive'),
       type: 'directive',
@@ -372,12 +401,14 @@ export class ASTBuilder {
       attributes: header?.inlineAttributes ?? {},
       rawBody: '',
       status: 'streaming',
+      meta: header ? undefined : { recovered: true },
     };
 
     this.appendRootNode(directive);
     this.activeDirective = {
       node: directive,
       lastValidBodyAttributes: {},
+      openedAt: Date.now(),
     };
   }
 
@@ -390,15 +421,28 @@ export class ASTBuilder {
     directive.rawBody =
       directive.rawBody.length > 0 ? `${directive.rawBody}\n${token.raw}` : token.raw;
 
-    const yamlResult = this.tryParseDirectiveBody(directive.rawBody);
-    if (yamlResult) {
-      this.activeDirective.lastValidBodyAttributes = yamlResult;
-    }
+    const yamlResult = this.tryParseDirectiveBody(
+      directive.rawBody,
+      this.activeDirective.lastValidBodyAttributes,
+    );
+    this.activeDirective.lastValidBodyAttributes = yamlResult;
 
     directive.attributes = {
       ...directive.attributes,
       ...this.activeDirective.lastValidBodyAttributes,
     };
+
+    if (
+      this.recoveryManager &&
+      this.recoveryManager.checkDirectiveTimeout(
+        directive,
+        Date.now() - this.activeDirective.openedAt,
+      )
+    ) {
+      directive.status = 'error';
+      directive.meta = { ...(directive.meta ?? {}), recovered: true };
+      this.activeDirective = null;
+    }
     this.dirtyIds.add(directive.id);
   }
 
@@ -412,12 +456,19 @@ export class ASTBuilder {
     this.activeDirective = null;
   }
 
-  private tryParseDirectiveBody(rawBody: string): Record<string, unknown> | null {
+  private tryParseDirectiveBody(
+    rawBody: string,
+    fallback: Record<string, unknown>,
+  ): Record<string, unknown> {
+    if (this.recoveryManager) {
+      return this.recoveryManager.recoverYAML(rawBody, fallback);
+    }
+
     try {
       const parsed = YAML.parse(rawBody);
-      return isRecord(parsed) ? parsed : null;
+      return isRecord(parsed) ? parsed : fallback;
     } catch {
-      return null;
+      return fallback;
     }
   }
 }

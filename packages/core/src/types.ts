@@ -35,4 +35,6 @@ export interface ParserEvent {
 
 export interface ParserOptions {
   emitInlineTokens?: boolean;
+  maxBufferSize?: number;
+  onBufferOverflow?: (position: Position) => void;
 }

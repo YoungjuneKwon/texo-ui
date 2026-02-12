@@ -1,3 +1,4 @@
+import { TextEncoder } from 'node:util';
 import type { ParserEvent, ParserOptions, Position, TextChunk } from '../types';
 import { DEFAULT_STATE, type ParserState } from './states';
 import { parseCodeFence } from './tokenizers/code-block';
@@ -8,6 +9,10 @@ import { isListItem } from './tokenizers/list';
 
 function clonePosition(position: Position): Position {
   return { ...position };
+}
+
+function utf8Length(value: string): number {
+  return new TextEncoder().encode(value).length;
 }
 
 function isHorizontalRule(line: string): boolean {
@@ -24,6 +29,8 @@ export class StreamParser {
   constructor(options?: ParserOptions) {
     this.options = {
       emitInlineTokens: options?.emitInlineTokens ?? true,
+      maxBufferSize: options?.maxBufferSize ?? 64 * 1024,
+      onBufferOverflow: options?.onBufferOverflow ?? (() => {}),
     };
   }
 
@@ -35,6 +42,15 @@ export class StreamParser {
     for (const ch of chunk) {
       this.lineBuffer += ch;
       this.advancePosition(ch);
+
+      if (utf8Length(this.lineBuffer) > this.options.maxBufferSize) {
+        yield* this.processLine(this.lineBuffer, clonePosition(this.lineStart), false);
+        this.options.onBufferOverflow(clonePosition(this.position));
+        this.lineBuffer = '';
+        this.lineStart = clonePosition(this.position);
+        this.state = 'IDLE';
+        continue;
+      }
 
       if (ch === '\n') {
         const line = this.lineBuffer.slice(0, -1);
@@ -56,15 +72,6 @@ export class StreamParser {
       yield {
         type: 'code-block-end',
         raw: '```',
-        position: clonePosition(this.position),
-      };
-      this.state = 'IDLE';
-    }
-
-    if (this.state === 'DIRECTIVE_BODY') {
-      yield {
-        type: 'directive-close',
-        raw: ':::',
         position: clonePosition(this.position),
       };
       this.state = 'IDLE';

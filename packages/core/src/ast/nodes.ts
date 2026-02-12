@@ -7,6 +7,9 @@ export interface ASTNode {
   type: ASTNodeType;
   children?: ASTNode[];
   position?: SourcePosition;
+  meta?: {
+    recovered?: boolean;
+  };
 }
 
 export type ASTNodeType =
