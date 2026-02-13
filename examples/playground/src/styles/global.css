@@ -220,6 +220,12 @@ a {
   gap: 10px;
 }
 
+.lab-render-panel {
+  height: 72vh;
+  max-height: 72vh;
+  overflow-y: auto;
+}
+
 .lab-details {
   display: grid;
   gap: 10px;

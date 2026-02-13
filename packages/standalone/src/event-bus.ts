@@ -43,7 +43,10 @@ export class TexoEventBus {
     if (!windowObj.document) {
       return;
     }
-    const event = new windowObj.CustomEvent(`texo:${eventName}`, { detail });
+    if (typeof globalThis.CustomEvent !== 'function') {
+      return;
+    }
+    const event = new globalThis.CustomEvent(`texo:${eventName}`, { detail });
     windowObj.dispatchEvent(event);
   }
 

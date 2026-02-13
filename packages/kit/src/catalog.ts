@@ -18,8 +18,14 @@ export const BUILTIN_COMPONENT_CATALOG: CatalogComponent[] = [
       { name: 'label', type: 'string', required: true, description: 'Visible button text.' },
       { name: 'action', type: 'string', required: true, description: 'Action id to emit.' },
       { name: 'variant', type: 'primary|secondary|ghost', description: 'Visual style.' },
+      {
+        name: 'stylePreset',
+        type: 'compact|wide|raised|pill|flat|outline-bold',
+        description: 'Optional shape/size/shadow preset.',
+      },
     ],
-    example: '::: texo-button\nlabel: "Save"\naction: "save-form"\nvariant: "primary"\n:::',
+    example:
+      '::: texo-button\nlabel: "Save"\naction: "save-form"\nvariant: "primary"\nstylePreset: "raised"\n:::',
   },
   {
     name: 'texo-input',

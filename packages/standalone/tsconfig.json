@@ -7,7 +7,7 @@
     "jsx": "react-jsx",
     "tsBuildInfoFile": "dist/.tsbuildinfo"
   },
-  "include": ["src", "vite.config.ts"],
+  "include": ["src"],
   "references": [
     {
       "path": "../core"

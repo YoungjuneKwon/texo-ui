@@ -130,6 +130,12 @@ export function LabPage(): JSX.Element {
       'Output must be directly renderable by TexoRenderer as markdown + directives.',
       'Do not return JSON object wrappers.',
       'Close every directive with :::.',
+      'When using texo-grid, always declare rows/columns and explicit cells with unique id values.',
+      'For cell coordinates, prefer 1-based row/column values.',
+      'Place components into grid cells with optional mount field instead of nesting as grid children.',
+      'Support theming with texo-theme using scope: global/local and token keys (background, foreground, accent, line, radius).',
+      'Prefer texo-theme preset names first, then override only needed tokens.',
+      'For calculator/keypad screens prefer texo-button stylePreset: wide or raised.',
     ],
     [],
   );
@@ -324,12 +330,13 @@ export function LabPage(): JSX.Element {
           ) : null}
         </article>
 
-        <article className="panel">
+        <article className="panel lab-render-panel">
           <h3>Rendered UI</h3>
           <TexoRenderer
             content={streamTextValue}
             registry={registry}
             trimLeadingTextBeforeDirective
+            renderDirectivesOnly
             onAction={(action) => setActions((prev) => [...prev, action])}
             onError={(event) => setRecoveryEvents((prev) => [...prev, event])}
           />

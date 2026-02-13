@@ -12,7 +12,7 @@ export enum StorageErrorCode {
 export class StorageError extends Error {
   readonly code: StorageErrorCode;
   readonly driver: string;
-  override readonly cause?: Error;
+  readonly cause?: Error;
 
   constructor(message: string, code: StorageErrorCode, driver: string, cause?: Error) {
     super(message);

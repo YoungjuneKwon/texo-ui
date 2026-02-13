@@ -27,6 +27,7 @@ export interface TexoRendererProps {
   errorFallback?: React.ComponentType<ErrorFallbackProps>;
   errorResetKeys?: readonly unknown[];
   trimLeadingTextBeforeDirective?: boolean;
+  renderDirectivesOnly?: boolean;
   streamOptions?: UseTexoStreamOptions;
   className?: string;
   style?: React.CSSProperties;
@@ -60,6 +61,9 @@ export function TexoRenderer(props: TexoRendererProps): React.ReactElement {
   const { dispatch, onAction } = useTexoAction();
   const registry = useMemo(() => resolveRegistry(props.registry), [props.registry]);
   const lastValidASTRef = useRef<RootNode | undefined>(undefined);
+  const actionHandlerRef = useRef<TexoRendererProps['onAction']>(props.onAction);
+  const errorHandlerRef = useRef<TexoRendererProps['onError']>(props.onError);
+  const lastReportedErrorRef = useRef<RecoveryEvent | null>(null);
 
   useEffect(() => {
     if (typeof props.content === 'string') {
@@ -70,17 +74,35 @@ export function TexoRenderer(props: TexoRendererProps): React.ReactElement {
   }, [props.content, push, end, reset]);
 
   useEffect(() => {
-    if (props.onAction) {
-      return onAction(props.onAction);
-    }
-    return;
-  }, [onAction, props.onAction]);
+    actionHandlerRef.current = props.onAction;
+  }, [props.onAction]);
 
   useEffect(() => {
-    if (errors.length > 0 && props.onError) {
-      props.onError(errors[errors.length - 1]);
+    errorHandlerRef.current = props.onError;
+  }, [props.onError]);
+
+  useEffect(() => {
+    if (actionHandlerRef.current) {
+      return onAction((action) => {
+        actionHandlerRef.current?.(action);
+      });
     }
-  }, [errors, props.onError]);
+    return;
+  }, [onAction]);
+
+  useEffect(() => {
+    if (errors.length === 0) {
+      lastReportedErrorRef.current = null;
+      return;
+    }
+
+    const latestError = errors[errors.length - 1];
+    if (lastReportedErrorRef.current === latestError) {
+      return;
+    }
+    lastReportedErrorRef.current = latestError;
+    errorHandlerRef.current?.(latestError);
+  }, [errors]);
 
   const resolvedAST = typeof props.content === 'string' || !props.content ? ast : props.content;
   const renderAST = props.trimLeadingTextBeforeDirective
@@ -98,7 +120,7 @@ export function TexoRenderer(props: TexoRendererProps): React.ReactElement {
     >
       <TexoContext.Provider value={{ registry, dispatch }}>
         <div className={props.className} style={props.style}>
-          {reconcile(renderAST, registry, props.fallback)}
+          {reconcile(renderAST, registry, props.fallback, props.renderDirectivesOnly)}
         </div>
       </TexoContext.Provider>
     </TexoErrorBoundary>

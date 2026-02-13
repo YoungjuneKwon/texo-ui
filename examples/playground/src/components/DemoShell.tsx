@@ -96,6 +96,7 @@ export function DemoShell({ scenario }: { scenario: Scenario }): JSX.Element {
           content={streamText}
           registry={registry}
           trimLeadingTextBeforeDirective
+          renderDirectivesOnly
           onAction={(action) => setActions((prev) => [...prev, action])}
           onError={(event) => setErrors((prev) => [...prev, event])}
         />

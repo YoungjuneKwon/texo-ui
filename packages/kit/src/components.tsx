@@ -2,10 +2,10 @@ import React from 'react';
 import { useTexoContext } from '@texo-ui/react';
 
 const shellStyle: React.CSSProperties = {
-  border: '1px solid #d1d5db',
-  borderRadius: 12,
-  background: '#ffffff',
-  color: '#0f172a',
+  border: '1px solid var(--texo-theme-line, #d1d5db)',
+  borderRadius: 'var(--texo-theme-radius, 12px)',
+  background: 'var(--texo-theme-background, #ffffff)',
+  color: 'var(--texo-theme-foreground, #0f172a)',
   padding: 12,
 };
 
@@ -39,7 +39,7 @@ export function TexoStack(props: Record<string, unknown>): React.ReactElement {
   return (
     <section style={shellStyle}>
       {title ? <h3 style={{ margin: 0, marginBottom: 10 }}>{title}</h3> : null}
-      <p style={{ margin: 0, color: '#6b7280' }}>
+      <p style={{ margin: 0, color: 'var(--texo-theme-muted, #6b7280)' }}>
         Layout: {direction} / gap {gap}
       </p>
     </section>
@@ -64,10 +64,10 @@ export function TexoGrid(props: Record<string, unknown>): React.ReactElement {
             key={`grid-cell-${index}`}
             style={{
               border: '1px dashed #cbd5e1',
-              borderRadius: 8,
+              borderRadius: 'var(--texo-theme-radius, 8px)',
               minHeight: 48,
               padding: 8,
-              color: '#0f172a',
+              color: 'var(--texo-theme-foreground, #0f172a)',
             }}
           >
             Cell {index + 1}
@@ -82,12 +82,48 @@ export function TexoButton(props: Record<string, unknown>): React.ReactElement {
   const { dispatch } = useTexoContext();
   const label = asString(props.label, 'Action');
   const action = asString(props.action, 'action');
+  const stylePreset =
+    props.stylePreset === 'compact' ||
+    props.stylePreset === 'wide' ||
+    props.stylePreset === 'raised' ||
+    props.stylePreset === 'pill' ||
+    props.stylePreset === 'flat' ||
+    props.stylePreset === 'outline-bold'
+      ? props.stylePreset
+      : undefined;
   const variant =
     props.variant === 'secondary' || props.variant === 'ghost' ? props.variant : 'primary';
   const styles: Record<string, React.CSSProperties> = {
-    primary: { background: '#111827', color: '#ffffff', border: '1px solid #111827' },
-    secondary: { background: '#ffffff', color: '#111827', border: '1px solid #111827' },
-    ghost: { background: 'transparent', color: '#111827', border: '1px dashed #9ca3af' },
+    primary: {
+      background: 'var(--texo-theme-accent, #111827)',
+      color: 'var(--texo-theme-on-accent, #ffffff)',
+      border: '1px solid var(--texo-theme-accent, #111827)',
+    },
+    secondary: {
+      background: 'var(--texo-theme-background, #ffffff)',
+      color: 'var(--texo-theme-foreground, #111827)',
+      border: '1px solid var(--texo-theme-line, #111827)',
+    },
+    ghost: {
+      background: 'transparent',
+      color: 'var(--texo-theme-foreground, #111827)',
+      border: '1px dashed var(--texo-theme-line, #9ca3af)',
+    },
+  };
+
+  const presetStyles: Record<string, React.CSSProperties> = {
+    compact: { padding: '6px 10px', fontSize: 13, minHeight: 36 },
+    wide: { width: '100%', minHeight: 56, fontSize: 18, fontWeight: 700 },
+    raised: {
+      width: '100%',
+      minHeight: 56,
+      boxShadow: '0 10px 20px rgba(15, 23, 42, 0.15)',
+      fontSize: 17,
+      fontWeight: 700,
+    },
+    pill: { borderRadius: 999, padding: '10px 16px', fontWeight: 600 },
+    flat: { boxShadow: 'none', minHeight: 48 },
+    'outline-bold': { borderWidth: 2, fontWeight: 700, minHeight: 48 },
   };
 
   return (
@@ -95,7 +131,17 @@ export function TexoButton(props: Record<string, unknown>): React.ReactElement {
       type="button"
       data-action={action}
       onClick={() => dispatch({ type: action, directive: 'texo-button', value: { label, action } })}
-      style={{ borderRadius: 10, padding: '8px 12px', ...styles[variant] }}
+      style={{
+        borderRadius: 'var(--texo-theme-radius, 10px)',
+        padding: '8px 12px',
+        width: '100%',
+        minHeight: 48,
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        ...styles[variant],
+        ...(stylePreset ? presetStyles[stylePreset] : {}),
+      }}
     >
       {label}
     </button>
@@ -113,17 +159,17 @@ export function TexoInput(props: Record<string, unknown>): React.ReactElement {
 
   return (
     <label style={{ display: 'grid', gap: 6 }}>
-      <span style={{ fontSize: 13, color: '#374151' }}>{label}</span>
+      <span style={{ fontSize: 13, color: 'var(--texo-theme-foreground, #374151)' }}>{label}</span>
       <input
         name={name}
         type={inputType}
         placeholder={placeholder}
         style={{
-          border: '1px solid #d1d5db',
-          borderRadius: 8,
+          border: '1px solid var(--texo-theme-line, #d1d5db)',
+          borderRadius: 'var(--texo-theme-radius, 8px)',
           padding: '8px 10px',
-          background: '#ffffff',
-          color: '#0f172a',
+          background: 'var(--texo-theme-background, #ffffff)',
+          color: 'var(--texo-theme-foreground, #0f172a)',
         }}
       />
     </label>
@@ -135,14 +181,25 @@ export function TexoTable(props: Record<string, unknown>): React.ReactElement {
   const rows = asRecordArray(props.rows);
 
   return (
-    <div style={{ overflowX: 'auto', color: '#0f172a', background: '#ffffff', borderRadius: 10 }}>
+    <div
+      style={{
+        overflowX: 'auto',
+        color: 'var(--texo-theme-foreground, #0f172a)',
+        background: 'var(--texo-theme-background, #ffffff)',
+        borderRadius: 'var(--texo-theme-radius, 10px)',
+      }}
+    >
       <table style={{ width: '100%', borderCollapse: 'collapse' }}>
         <thead>
           <tr>
             {columns.map((column) => (
               <th
                 key={column}
-                style={{ textAlign: 'left', borderBottom: '1px solid #d1d5db', padding: 8 }}
+                style={{
+                  textAlign: 'left',
+                  borderBottom: '1px solid var(--texo-theme-line, #d1d5db)',
+                  padding: 8,
+                }}
               >
                 {column}
               </th>
@@ -155,7 +212,7 @@ export function TexoTable(props: Record<string, unknown>): React.ReactElement {
               {columns.map((column) => (
                 <td
                   key={`${index}-${column}`}
-                  style={{ borderBottom: '1px solid #e5e7eb', padding: 8 }}
+                  style={{ borderBottom: '1px solid var(--texo-theme-line, #e5e7eb)', padding: 8 }}
                 >
                   {String(row[column] ?? '')}
                 </td>
@@ -187,7 +244,14 @@ export function TexoChart(props: Record<string, unknown>): React.ReactElement {
   const total = values.reduce((sum, value) => sum + value, 0);
 
   if (chartType === 'pie' || chartType === 'donut') {
-    const palette = ['#2563eb', '#0ea5e9', '#14b8a6', '#22c55e', '#f59e0b', '#ef4444'];
+    const palette = [
+      'var(--texo-theme-accent, #2563eb)',
+      '#0ea5e9',
+      '#14b8a6',
+      '#22c55e',
+      '#f59e0b',
+      '#ef4444',
+    ];
     const gradientStops = values
       .map((value, index) => {
         const start = values.slice(0, index).reduce((sum, current) => sum + current, 0);
@@ -276,11 +340,24 @@ export function TexoChart(props: Record<string, unknown>): React.ReactElement {
           role="img"
           aria-label="Line chart"
         >
-          <polyline fill="none" stroke="#2563eb" strokeWidth="3" points={points} />
+          <polyline
+            fill="none"
+            stroke="var(--texo-theme-accent, #2563eb)"
+            strokeWidth="3"
+            points={points}
+          />
           {values.map((value, index) => {
             const x = labels.length > 1 ? (index / (labels.length - 1)) * width : width / 2;
             const y = height - (value / max) * (height - 10) - 5;
-            return <circle key={`${labels[index] ?? index}`} cx={x} cy={y} r="4" fill="#0ea5e9" />;
+            return (
+              <circle
+                key={`${labels[index] ?? index}`}
+                cx={x}
+                cy={y}
+                r="4"
+                fill="var(--texo-theme-accent, #0ea5e9)"
+              />
+            );
           })}
         </svg>
         <div style={{ display: 'grid', gap: 4, marginTop: 6 }}>
@@ -311,8 +388,21 @@ export function TexoChart(props: Record<string, unknown>): React.ReactElement {
                 <span>{label}</span>
                 <span>{value}</span>
               </div>
-              <div style={{ height: 8, borderRadius: 999, background: '#e5e7eb' }}>
-                <div style={{ height: 8, borderRadius: 999, background: '#2563eb', width }} />
+              <div
+                style={{
+                  height: 8,
+                  borderRadius: 999,
+                  background: 'var(--texo-theme-line, #e5e7eb)',
+                }}
+              >
+                <div
+                  style={{
+                    height: 8,
+                    borderRadius: 999,
+                    background: 'var(--texo-theme-accent, #2563eb)',
+                    width,
+                  }}
+                />
               </div>
             </div>
           );

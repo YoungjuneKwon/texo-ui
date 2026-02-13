@@ -2,9 +2,9 @@ import { Link, useLocation } from 'react-router-dom';
 
 const MODES = [
   { id: 'casual', label: 'Casual', icon: '🎮', color: '#ec4899', disabled: false },
+  { id: 'lab', label: 'Lab', icon: '🧪', color: '#f59e0b', disabled: false },
   { id: 'pro', label: 'Pro (TBD)', icon: '🔧', color: '#2563eb', disabled: true },
   { id: 'data', label: 'Data (TBD)', icon: '📊', color: '#14b8a6', disabled: true },
-  { id: 'lab', label: 'Lab', icon: '🧪', color: '#f59e0b', disabled: false },
 ] as const;
 
 export function ModeSwitcher(): JSX.Element {
