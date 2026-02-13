@@ -141,6 +141,11 @@ export const TEXO_STREAM_PRIMER = [
   'Button style protocol:',
   `- texo-button can set stylePreset: one of [${BUTTON_PRESET_NAMES}].`,
   '- For calculator/keypad UIs prefer stylePreset: "wide" or "raised" for stable touch targets.',
+  'Chart protocol:',
+  '- For time series use texo-chart with chartType: "line" and 2+ series when requested.',
+  '- To allow x-axis switching, set xEditable: true and provide xAxisMode/date options.',
+  '- xAxisMode supports label | index | date; with date mode use startDate and dayStep.',
+  '- For comparison pie charts, create a second texo-chart with chartType: "pie" using each series last value.',
 ].join('\n');
 
 function formatComponentDocs(components: TexoComponentDoc[]): string {

@@ -136,6 +136,8 @@ export function LabPage(): JSX.Element {
       'Support theming with texo-theme using scope: global/local and token keys (background, foreground, accent, line, radius).',
       'Prefer texo-theme preset names first, then override only needed tokens.',
       'For calculator/keypad screens prefer texo-button stylePreset: wide or raised.',
+      'For time-series requests use texo-chart line with multi-series, and set xEditable: true when axis changes should be allowed.',
+      'If prompt asks for pie from last-day values, output a second texo-chart pie using each series final value.',
     ],
     [],
   );

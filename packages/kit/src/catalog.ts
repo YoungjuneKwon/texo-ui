@@ -73,8 +73,28 @@ export const BUILTIN_COMPONENT_CATALOG: CatalogComponent[] = [
         required: true,
         description: 'Numeric series by label index.',
       },
+      {
+        name: 'xAxisMode',
+        type: 'label|index|date',
+        description: 'Line chart x-axis mode.',
+      },
+      {
+        name: 'xEditable',
+        type: 'boolean',
+        description: 'Enable interactive x-axis controls.',
+      },
+      {
+        name: 'startDate',
+        type: 'YYYY-MM-DD',
+        description: 'Start date when xAxisMode is date.',
+      },
+      {
+        name: 'dayStep',
+        type: 'number',
+        description: 'Date increment step in days.',
+      },
     ],
     example:
-      '::: texo-chart\nchartType: "bar"\nlabels: ["Mon", "Tue"]\nseries:\n  - name: "Sales"\n    values: [12, 18]\n:::',
+      '::: texo-chart\nchartType: "line"\nxAxisMode: "date"\nxEditable: true\nstartDate: "2026-02-01"\ndayStep: 1\nlabels: ["1", "2", "3"]\nseries:\n  - name: "Sales"\n    values: [12, 18, 16]\n:::',
   },
 ];

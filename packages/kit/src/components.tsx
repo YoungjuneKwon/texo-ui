@@ -17,6 +17,10 @@ function asString(value: unknown, fallback = ''): string {
   return typeof value === 'string' ? value : fallback;
 }
 
+function asBoolean(value: unknown, fallback = false): boolean {
+  return typeof value === 'boolean' ? value : fallback;
+}
+
 function asStringArray(value: unknown): string[] {
   return Array.isArray(value)
     ? value.filter((entry): entry is string => typeof entry === 'string')
@@ -29,6 +33,37 @@ function asRecordArray(value: unknown): Array<Record<string, unknown>> {
         (entry): entry is Record<string, unknown> => typeof entry === 'object' && entry !== null,
       )
     : [];
+}
+
+interface ChartSeries {
+  name: string;
+  values: number[];
+}
+
+function parseChartSeries(value: unknown): ChartSeries[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value
+    .filter(
+      (entry): entry is Record<string, unknown> => typeof entry === 'object' && entry !== null,
+    )
+    .map((entry, index) => {
+      const source =
+        Array.isArray(entry.values) && entry.values.length > 0
+          ? entry.values
+          : Array.isArray(entry.data)
+            ? entry.data
+            : [];
+      return {
+        name: asString(entry.name, `Series ${index + 1}`),
+        values: source.filter(
+          (point): point is number => typeof point === 'number' && Number.isFinite(point),
+        ),
+      };
+    })
+    .filter((series) => series.values.length > 0);
 }
 
 export function TexoStack(props: Record<string, unknown>): React.ReactElement {
@@ -230,18 +265,30 @@ export function TexoChart(props: Record<string, unknown>): React.ReactElement {
     props.chartType === 'line' || props.chartType === 'pie' || props.chartType === 'donut'
       ? props.chartType
       : 'bar';
+  const xEditable = asBoolean(props.xEditable, false);
+  const initialMode =
+    props.xAxisMode === 'index' || props.xAxisMode === 'date' || props.xAxisMode === 'label'
+      ? props.xAxisMode
+      : 'label';
+  const [xAxisMode, setXAxisMode] = React.useState<'label' | 'index' | 'date'>(initialMode);
+  const [startDate, setStartDate] = React.useState(asString(props.startDate, '2026-01-01'));
+  const [dayStep, setDayStep] = React.useState(Math.max(1, Math.floor(asNumber(props.dayStep, 1))));
+
+  React.useEffect(() => {
+    if (props.xAxisMode === 'index' || props.xAxisMode === 'date' || props.xAxisMode === 'label') {
+      setXAxisMode(props.xAxisMode);
+    }
+    if (typeof props.startDate === 'string' && props.startDate.length > 0) {
+      setStartDate(props.startDate);
+    }
+    if (props.dayStep !== undefined) {
+      setDayStep(Math.max(1, Math.floor(asNumber(props.dayStep, 1))));
+    }
+  }, [props.xAxisMode, props.startDate, props.dayStep]);
+
   const labels = asStringArray(props.labels);
-  const firstSeries = Array.isArray(props.series) ? props.series[0] : undefined;
-  const values =
-    firstSeries &&
-    typeof firstSeries === 'object' &&
-    Array.isArray((firstSeries as { values?: unknown }).values)
-      ? (firstSeries as { values: unknown[] }).values.filter(
-          (value): value is number => typeof value === 'number' && Number.isFinite(value),
-        )
-      : [];
-  const max = Math.max(...values, 1);
-  const total = values.reduce((sum, value) => sum + value, 0);
+  const sourceSeries = parseChartSeries(props.series);
+  const series = sourceSeries.length > 0 ? sourceSeries : [{ name: 'Series 1', values: [] }];
 
   if (chartType === 'pie' || chartType === 'donut') {
     const palette = [
@@ -252,9 +299,15 @@ export function TexoChart(props: Record<string, unknown>): React.ReactElement {
       '#f59e0b',
       '#ef4444',
     ];
-    const gradientStops = values
+    const pieLabels = series.length > 1 ? series.map((entry) => entry.name) : labels;
+    const pieValues =
+      series.length > 1
+        ? series.map((entry) => entry.values[entry.values.length - 1] ?? 0)
+        : series[0].values;
+    const total = pieValues.reduce((sum, value) => sum + value, 0);
+    const gradientStops = pieValues
       .map((value, index) => {
-        const start = values.slice(0, index).reduce((sum, current) => sum + current, 0);
+        const start = pieValues.slice(0, index).reduce((sum, current) => sum + current, 0);
         const startPct = total > 0 ? Math.round((start / total) * 100) : 0;
         const endPct = total > 0 ? Math.round(((start + value) / total) * 100) : 0;
         const color = palette[index % palette.length];
@@ -288,8 +341,8 @@ export function TexoChart(props: Record<string, unknown>): React.ReactElement {
             }}
           />
           <div style={{ display: 'grid', gap: 6 }}>
-            {labels.map((label, index) => {
-              const value = values[index] ?? 0;
+            {pieLabels.map((label, index) => {
+              const value = pieValues[index] ?? 0;
               const share = total > 0 ? Math.round((value / total) * 100) : 0;
               const color = palette[index % palette.length];
               return (
@@ -321,9 +374,28 @@ export function TexoChart(props: Record<string, unknown>): React.ReactElement {
   }
 
   if (chartType === 'line') {
-    const chartLabels = values.map((_, index) => labels[index] ?? String(index + 1));
-    const min = values.length > 0 ? Math.min(...values) : 0;
-    const maxValue = values.length > 0 ? Math.max(...values) : 1;
+    const maxLength = Math.max(...series.map((entry) => entry.values.length), 0);
+
+    const chartLabels = Array.from({ length: maxLength }, (_, index) => {
+      if (xAxisMode === 'index') {
+        return String(index + 1);
+      }
+      if (xAxisMode === 'date') {
+        const base = new Date(startDate);
+        if (Number.isNaN(base.getTime())) {
+          return `D${index + 1}`;
+        }
+        base.setDate(base.getDate() + index * dayStep);
+        const month = String(base.getMonth() + 1).padStart(2, '0');
+        const day = String(base.getDate()).padStart(2, '0');
+        return `${month}/${day}`;
+      }
+      return labels[index] ?? String(index + 1);
+    });
+
+    const allValues = series.flatMap((entry) => entry.values);
+    const min = allValues.length > 0 ? Math.min(...allValues) : 0;
+    const maxValue = allValues.length > 0 ? Math.max(...allValues) : 1;
     const range = Math.max(maxValue - min, 1);
     const width = 640;
     const height = 260;
@@ -334,23 +406,30 @@ export function TexoChart(props: Record<string, unknown>): React.ReactElement {
     const plotWidth = width - left - right;
     const plotHeight = height - top - bottom;
 
-    const points = values.map((value, index) => {
-      const x =
-        values.length > 1 ? left + (index / (values.length - 1)) * plotWidth : left + plotWidth / 2;
-      const y = top + ((maxValue - value) / range) * plotHeight;
-      return { x, y, value };
+    const palette = ['#60a5fa', '#22c55e', '#f59e0b', '#e11d48', '#7c3aed'];
+    const lineSeries = series.map((entry, seriesIndex) => {
+      const points = entry.values.map((value, index) => {
+        const x =
+          maxLength > 1 ? left + (index / (maxLength - 1)) * plotWidth : left + plotWidth / 2;
+        const y = top + ((maxValue - value) / range) * plotHeight;
+        return { x, y, value };
+      });
+
+      const linePath = points
+        .map(
+          (point, index) =>
+            `${index === 0 ? 'M' : 'L'} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`,
+        )
+        .join(' ');
+
+      return {
+        name: entry.name,
+        values: entry.values,
+        color: palette[seriesIndex % palette.length],
+        points,
+        linePath,
+      };
     });
-
-    const linePath = points
-      .map(
-        (point, index) => `${index === 0 ? 'M' : 'L'} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`,
-      )
-      .join(' ');
-
-    const areaPath =
-      points.length > 0
-        ? `${linePath} L ${points[points.length - 1].x.toFixed(2)} ${(top + plotHeight).toFixed(2)} L ${points[0].x.toFixed(2)} ${(top + plotHeight).toFixed(2)} Z`
-        : '';
 
     const yTicks = Array.from({ length: 5 }, (_, index) => {
       const ratio = index / 4;
@@ -359,22 +438,15 @@ export function TexoChart(props: Record<string, unknown>): React.ReactElement {
       return { value, y };
     });
 
-    const xTickStep = Math.max(1, Math.ceil(chartLabels.length / 6));
+    const xTickStep = Math.max(1, Math.ceil(chartLabels.length / 8));
     const xTicks = chartLabels
       .map((label, index) => ({ label, index }))
       .filter((entry, idx) => idx % xTickStep === 0 || idx === chartLabels.length - 1)
       .map((entry) => ({
         label: entry.label,
         x:
-          values.length > 1
-            ? left + (entry.index / (values.length - 1)) * plotWidth
-            : left + plotWidth / 2,
+          maxLength > 1 ? left + (entry.index / (maxLength - 1)) * plotWidth : left + plotWidth / 2,
       }));
-
-    const first = values[0] ?? 0;
-    const last = values[values.length - 1] ?? 0;
-    const delta = last - first;
-    const deltaSign = delta >= 0 ? '+' : '';
 
     return (
       <section style={shellStyle}>
@@ -421,84 +493,159 @@ export function TexoChart(props: Record<string, unknown>): React.ReactElement {
               {tick.label}
             </text>
           ))}
-          {areaPath ? (
-            <path d={areaPath} fill="var(--texo-theme-accent, #60a5fa)" opacity="0.16" />
-          ) : null}
-          {linePath ? (
-            <path
-              d={linePath}
-              fill="none"
-              stroke="var(--texo-theme-accent, #60a5fa)"
-              strokeWidth="3"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          ) : null}
-          {points.map((point, index) => {
-            const isEdge = index === 0 || index === points.length - 1;
-            const isMajor = index % xTickStep === 0;
-            if (!isEdge && !isMajor) {
-              return null;
-            }
-            return (
-              <circle
-                key={`dot-${index}`}
-                cx={point.x}
-                cy={point.y}
-                r={isEdge ? 4.5 : 3.5}
-                fill="var(--texo-theme-accent, #60a5fa)"
-                stroke="var(--texo-theme-background, #0b1220)"
-                strokeWidth="2"
+          {lineSeries.map((entry) =>
+            entry.linePath ? (
+              <path
+                key={`line-${entry.name}`}
+                d={entry.linePath}
+                fill="none"
+                stroke={entry.color}
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
               />
-            );
-          })}
+            ) : null,
+          )}
+          {lineSeries.map((entry) =>
+            entry.points.map((point, index) => {
+              const isEdge = index === 0 || index === entry.points.length - 1;
+              const isMajor = index % xTickStep === 0;
+              if (!isEdge && !isMajor) {
+                return null;
+              }
+              return (
+                <circle
+                  key={`dot-${entry.name}-${index}`}
+                  cx={point.x}
+                  cy={point.y}
+                  r={isEdge ? 3.5 : 2.5}
+                  fill={entry.color}
+                  stroke="var(--texo-theme-background, #0b1220)"
+                  strokeWidth="1.5"
+                />
+              );
+            }),
+          )}
         </svg>
+
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
+          {lineSeries.map((entry) => (
+            <span
+              key={`legend-${entry.name}`}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                fontSize: 12,
+                border: '1px solid var(--texo-theme-line, #334155)',
+                borderRadius: 999,
+                padding: '4px 8px',
+              }}
+            >
+              <i style={{ width: 10, height: 10, borderRadius: 999, background: entry.color }} />
+              {entry.name}
+            </span>
+          ))}
+        </div>
+
+        {xEditable ? (
+          <div
+            style={{
+              marginTop: 10,
+              display: 'grid',
+              gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+              gap: 8,
+            }}
+          >
+            <label style={{ display: 'grid', gap: 4, fontSize: 12 }}>
+              X Axis
+              <select
+                value={xAxisMode}
+                onChange={(event) => setXAxisMode(event.target.value as 'label' | 'index' | 'date')}
+                style={{
+                  border: '1px solid var(--texo-theme-line, #334155)',
+                  borderRadius: 'var(--texo-theme-radius, 8px)',
+                  background: 'var(--texo-theme-background, #ffffff)',
+                  color: 'var(--texo-theme-foreground, #0f172a)',
+                  padding: '6px 8px',
+                }}
+              >
+                <option value="label">Label</option>
+                <option value="index">Index</option>
+                <option value="date">Date</option>
+              </select>
+            </label>
+            <label style={{ display: 'grid', gap: 4, fontSize: 12 }}>
+              Start Date
+              <input
+                type="date"
+                value={startDate}
+                onChange={(event) => setStartDate(event.target.value)}
+                disabled={xAxisMode !== 'date'}
+                style={{
+                  border: '1px solid var(--texo-theme-line, #334155)',
+                  borderRadius: 'var(--texo-theme-radius, 8px)',
+                  background: 'var(--texo-theme-background, #ffffff)',
+                  color: 'var(--texo-theme-foreground, #0f172a)',
+                  padding: '6px 8px',
+                }}
+              />
+            </label>
+            <label style={{ display: 'grid', gap: 4, fontSize: 12 }}>
+              Day Step
+              <input
+                type="number"
+                min={1}
+                step={1}
+                value={dayStep}
+                onChange={(event) =>
+                  setDayStep(Math.max(1, Math.floor(Number(event.target.value) || 1)))
+                }
+                disabled={xAxisMode !== 'date'}
+                style={{
+                  border: '1px solid var(--texo-theme-line, #334155)',
+                  borderRadius: 'var(--texo-theme-radius, 8px)',
+                  background: 'var(--texo-theme-background, #ffffff)',
+                  color: 'var(--texo-theme-foreground, #0f172a)',
+                  padding: '6px 8px',
+                }}
+              />
+            </label>
+          </div>
+        ) : null}
+
         <div
           style={{
             marginTop: 10,
             display: 'grid',
-            gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
             gap: 8,
           }}
         >
-          <div
-            style={{
-              border: '1px solid var(--texo-theme-line, #334155)',
-              borderRadius: 'var(--texo-theme-radius, 10px)',
-              padding: 8,
-              fontSize: 12,
-            }}
-          >
-            <strong>Latest</strong>
-            <div>{last.toFixed(1)}%</div>
-          </div>
-          <div
-            style={{
-              border: '1px solid var(--texo-theme-line, #334155)',
-              borderRadius: 'var(--texo-theme-radius, 10px)',
-              padding: 8,
-              fontSize: 12,
-            }}
-          >
-            <strong>30d Delta</strong>
-            <div>
-              {deltaSign}
-              {delta.toFixed(1)}%
-            </div>
-          </div>
-          <div
-            style={{
-              border: '1px solid var(--texo-theme-line, #334155)',
-              borderRadius: 'var(--texo-theme-radius, 10px)',
-              padding: 8,
-              fontSize: 12,
-            }}
-          >
-            <strong>Range</strong>
-            <div>
-              {min.toFixed(1)}% - {maxValue.toFixed(1)}%
-            </div>
-          </div>
+          {lineSeries.map((entry) => {
+            const first = entry.values[0] ?? 0;
+            const last = entry.values[entry.values.length - 1] ?? 0;
+            const delta = last - first;
+            const deltaSign = delta >= 0 ? '+' : '';
+            return (
+              <div
+                key={`summary-${entry.name}`}
+                style={{
+                  border: '1px solid var(--texo-theme-line, #334155)',
+                  borderRadius: 'var(--texo-theme-radius, 10px)',
+                  padding: 8,
+                  fontSize: 12,
+                }}
+              >
+                <strong>{entry.name}</strong>
+                <div>Latest {last.toFixed(1)}%</div>
+                <div>
+                  Delta {deltaSign}
+                  {delta.toFixed(1)}%
+                </div>
+              </div>
+            );
+          })}
         </div>
       </section>
     );
@@ -508,8 +655,9 @@ export function TexoChart(props: Record<string, unknown>): React.ReactElement {
     <section style={shellStyle}>
       <h3 style={{ margin: 0, marginBottom: 8 }}>Chart ({chartType})</h3>
       <div style={{ display: 'grid', gap: 6 }}>
-        {labels.map((label, index) => {
-          const value = values[index] ?? 0;
+        {(series[0]?.values ?? []).map((value, index) => {
+          const label = labels[index] ?? String(index + 1);
+          const max = Math.max(...(series[0]?.values ?? [1]), 1);
           const width = `${Math.round((value / max) * 100)}%`;
           return (
             <div key={label} style={{ display: 'grid', gap: 2 }}>
