@@ -4,6 +4,6 @@ export const memeScenario: Scenario = {
   id: 'meme',
   name: 'Meme Editor',
   category: 'casual',
-  systemPrompt: 'Generate a meme editing interface with text overlays.',
-  content: `Build a meme from this template.\n\n::: meme-editor\nbackgroundImage: "https://images.unsplash.com/photo-1516117172878-fd2c41f4a759?w=800"\nwidth: 600\nheight: 400\ntextBoxes:\n  - text: "WHEN BUILD PASSES"\n    position: "top"\n    fontSize: 30\n    color: "#FFFFFF"\n  - text: "ON FRIDAY EVENING"\n    position: "bottom"\n    fontSize: 30\n    color: "#FFFFFF"\n:::`,
+  systemPrompt: 'Generate a meme caption workflow using texo-input, texo-button, texo-table.',
+  content: `Caption board\n\n::: texo-stack\ntitle: "Meme Caption Builder"\ndirection: "column"\ngap: 10\n:::\n\n::: texo-input\nlabel: "Top text"\nname: "topText"\nplaceholder: "WHEN BUILD PASSES"\n:::\n\n::: texo-input\nlabel: "Bottom text"\nname: "bottomText"\nplaceholder: "ON FRIDAY NIGHT"\n:::\n\n::: texo-button\nlabel: "Preview Caption"\naction: "preview-caption"\nvariant: "primary"\n:::\n\n::: texo-button\nlabel: "Export Meme"\naction: "export-meme"\nvariant: "secondary"\n:::\n\n::: texo-table\ncolumns: ["slot", "value"]\nrows:\n  - slot: "Top"\n    value: "WHEN BUILD PASSES"\n  - slot: "Bottom"\n    value: "ON FRIDAY NIGHT"\n:::`,
 };

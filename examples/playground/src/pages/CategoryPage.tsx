@@ -4,6 +4,16 @@ import { scenariosByCategory } from '../scenarios';
 export function CategoryPage(): JSX.Element {
   const params = useParams<{ category: 'casual' | 'pro' | 'data' }>();
   const category = (params.category ?? 'casual') as 'casual' | 'pro' | 'data';
+
+  if (category === 'pro' || category === 'data') {
+    return (
+      <section>
+        <h2>{category.toUpperCase()} (TBD)</h2>
+        <p className="muted">This area is reserved for future demos.</p>
+      </section>
+    );
+  }
+
   const scenarios = scenariosByCategory(category);
 
   return (

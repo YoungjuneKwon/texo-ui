@@ -24,6 +24,103 @@ export interface PlannerProvider {
   generateTexoStreamText: (request: PlannerRequest) => Promise<string>;
 }
 
+const KNOWN_PROVIDER_MODELS: Record<PlannerProviderId, string[]> = {
+  mock: ['mock-v1', 'mock-fast', 'mock-creative'],
+  openai: ['gpt-4o-mini', 'gpt-4.1-mini', 'gpt-4.1'],
+  anthropic: ['claude-3-5-haiku-latest', 'claude-3-5-sonnet-latest', 'claude-3-7-sonnet-latest'],
+  deepseek: ['deepseek-chat', 'deepseek-reasoner', 'deepseek-coder'],
+};
+
+function uniqueModels(models: string[]): string[] {
+  return Array.from(new Set(models.filter((model) => model.length > 0)));
+}
+
+async function fetchModelsFromOpenAI(apiKey: string, baseUrl?: string): Promise<string[]> {
+  const endpointBase = baseUrl?.trim() || 'https://api.openai.com/v1';
+  const response = await fetch(`${endpointBase.replace(/\/$/, '')}/models`, {
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+    },
+  });
+  if (!response.ok) {
+    throw new Error(`OpenAI models request failed (${response.status})`);
+  }
+  const payload = (await response.json()) as { data?: Array<{ id?: string }> };
+  const ids = (payload.data ?? [])
+    .map((entry) => (typeof entry.id === 'string' ? entry.id : ''))
+    .filter((id) => id.startsWith('gpt-') || id.startsWith('o'));
+  return uniqueModels(ids);
+}
+
+async function fetchModelsFromAnthropic(apiKey: string, baseUrl?: string): Promise<string[]> {
+  const endpointBase = baseUrl?.trim() || 'https://api.anthropic.com/v1';
+  const response = await fetch(`${endpointBase.replace(/\/$/, '')}/models`, {
+    headers: {
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+    },
+  });
+  if (!response.ok) {
+    throw new Error(`Anthropic models request failed (${response.status})`);
+  }
+  const payload = (await response.json()) as { data?: Array<{ id?: string }> };
+  const ids = (payload.data ?? [])
+    .map((entry) => (typeof entry.id === 'string' ? entry.id : ''))
+    .filter((id) => id.startsWith('claude-'));
+  return uniqueModels(ids);
+}
+
+async function fetchModelsFromDeepSeek(apiKey: string, baseUrl?: string): Promise<string[]> {
+  const endpointBase = baseUrl?.trim() || 'https://api.deepseek.com/v1';
+  const response = await fetch(`${endpointBase.replace(/\/$/, '')}/models`, {
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+    },
+  });
+  if (!response.ok) {
+    throw new Error(`DeepSeek models request failed (${response.status})`);
+  }
+  const payload = (await response.json()) as { data?: Array<{ id?: string }> };
+  const ids = (payload.data ?? [])
+    .map((entry) => (typeof entry.id === 'string' ? entry.id : ''))
+    .filter((id) => id.startsWith('deepseek-'));
+  return uniqueModels(ids);
+}
+
+export async function resolveProviderModels(
+  providerId: PlannerProviderId,
+  apiKey?: string,
+  baseUrl?: string,
+): Promise<string[]> {
+  const fallback = KNOWN_PROVIDER_MODELS[providerId];
+  if (providerId === 'mock' || !apiKey) {
+    return fallback;
+  }
+
+  try {
+    if (providerId === 'openai') {
+      const remote = await fetchModelsFromOpenAI(apiKey, baseUrl);
+      return uniqueModels([...remote, ...fallback]);
+    }
+    if (providerId === 'anthropic') {
+      const remote = await fetchModelsFromAnthropic(apiKey, baseUrl);
+      return uniqueModels([...remote, ...fallback]);
+    }
+    if (providerId === 'deepseek') {
+      const remote = await fetchModelsFromDeepSeek(apiKey, baseUrl);
+      return uniqueModels([...remote, ...fallback]);
+    }
+  } catch {
+    return fallback;
+  }
+
+  return fallback;
+}
+
+export function getKnownProviderModels(providerId: PlannerProviderId): string[] {
+  return KNOWN_PROVIDER_MODELS[providerId];
+}
+
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => {
     globalThis.setTimeout(resolve, ms);

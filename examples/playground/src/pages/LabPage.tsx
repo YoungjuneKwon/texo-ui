@@ -9,25 +9,110 @@ import {
   type RecoveryEvent,
   type TexoComponentDoc,
 } from '@texo-ui/core';
-import { useMemo, useRef, useState } from 'react';
-import { plannerProviders, type PlannerProviderId } from '../utils/planner-providers';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  getKnownProviderModels,
+  plannerProviders,
+  resolveProviderModels,
+  type PlannerProviderId,
+} from '../utils/planner-providers';
+
+const LAB_PREFS_KEY = 'texo.lab.preferences.v1';
+
+interface LabPreferences {
+  providerId: PlannerProviderId;
+  model: string;
+  apiKey: string;
+  baseUrl: string;
+}
+
+interface ProviderModelOption {
+  providerId: PlannerProviderId;
+  providerLabel: string;
+  model: string;
+}
+
+function readLabPreferences(): LabPreferences | null {
+  if (typeof globalThis.localStorage === 'undefined') {
+    return null;
+  }
+  const raw = globalThis.localStorage.getItem(LAB_PREFS_KEY);
+  if (!raw) {
+    return null;
+  }
+  try {
+    const parsed = JSON.parse(raw) as Partial<LabPreferences>;
+    if (!parsed || typeof parsed !== 'object') {
+      return null;
+    }
+    const providerId =
+      parsed.providerId === 'openai' ||
+      parsed.providerId === 'anthropic' ||
+      parsed.providerId === 'deepseek' ||
+      parsed.providerId === 'mock'
+        ? parsed.providerId
+        : 'mock';
+    return {
+      providerId,
+      model:
+        typeof parsed.model === 'string' ? parsed.model : plannerProviders[providerId].defaultModel,
+      apiKey: typeof parsed.apiKey === 'string' ? parsed.apiKey : '',
+      baseUrl: typeof parsed.baseUrl === 'string' ? parsed.baseUrl : '',
+    };
+  } catch {
+    return null;
+  }
+}
 
 export function LabPage(): JSX.Element {
   const registry = useMemo(() => createRegistry(createBuiltInComponents()), []);
   const abortRef = useRef<AbortController | null>(null);
+  const initialPrefs = useMemo(() => readLabPreferences(), []);
 
-  const [providerId, setProviderId] = useState<PlannerProviderId>('mock');
-  const [model, setModel] = useState(plannerProviders.mock.defaultModel);
-  const [apiKey, setApiKey] = useState('');
-  const [baseUrl, setBaseUrl] = useState('');
+  const [providerId, setProviderId] = useState<PlannerProviderId>(
+    initialPrefs?.providerId ?? 'mock',
+  );
+  const [model, setModel] = useState(
+    initialPrefs?.model ?? plannerProviders[initialPrefs?.providerId ?? 'mock'].defaultModel,
+  );
+  const [apiKey, setApiKey] = useState(initialPrefs?.apiKey ?? '');
+  const [baseUrl, setBaseUrl] = useState(initialPrefs?.baseUrl ?? '');
   const [prompt, setPrompt] = useState('Create a compact analytics dashboard with a filter form.');
   const [streamTextValue, setStreamTextValue] = useState('');
   const [errors, setErrors] = useState<string[]>([]);
   const [actions, setActions] = useState<TexoAction[]>([]);
   const [recoveryEvents, setRecoveryEvents] = useState<RecoveryEvent[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [modelOptionsByProvider, setModelOptionsByProvider] = useState<
+    Record<PlannerProviderId, string[]>
+  >({
+    mock: getKnownProviderModels('mock'),
+    openai: getKnownProviderModels('openai'),
+    anthropic: getKnownProviderModels('anthropic'),
+    deepseek: getKnownProviderModels('deepseek'),
+  });
 
   const provider = plannerProviders[providerId];
+
+  const providerModelOptions = useMemo<ProviderModelOption[]>(() => {
+    const byProvider = { ...modelOptionsByProvider };
+    const selectedList = byProvider[providerId] ?? [];
+    if (model && !selectedList.includes(model)) {
+      byProvider[providerId] = [model, ...selectedList];
+    }
+
+    return (Object.keys(plannerProviders) as PlannerProviderId[]).flatMap((id) => {
+      const providerEntry = plannerProviders[id];
+      const models = byProvider[id] ?? [];
+      return models.map((modelName) => ({
+        providerId: id,
+        providerLabel: providerEntry.label,
+        model: modelName,
+      }));
+    });
+  }, [modelOptionsByProvider, providerId, model]);
+
+  const selectedProviderModelValue = `${providerId}::${model}`;
 
   const componentDocs = useMemo<TexoComponentDoc[]>(
     () =>
@@ -54,10 +139,62 @@ export function LabPage(): JSX.Element {
     [componentDocs, sharedRules],
   );
 
-  const onProviderChange = (nextProviderId: PlannerProviderId): void => {
+  const onProviderModelChange = (value: string): void => {
+    const [nextProviderId, nextModel] = value.split('::') as [PlannerProviderId, string];
+    if (!plannerProviders[nextProviderId] || !nextModel) {
+      return;
+    }
     setProviderId(nextProviderId);
-    setModel(plannerProviders[nextProviderId].defaultModel);
+    setModel(nextModel);
   };
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const load = async (): Promise<void> => {
+      const entries = await Promise.all(
+        (Object.keys(plannerProviders) as PlannerProviderId[]).map(async (id) => {
+          const models = await resolveProviderModels(
+            id,
+            apiKey.trim() || undefined,
+            baseUrl.trim() || undefined,
+          );
+          return [id, models] as const;
+        }),
+      );
+
+      if (cancelled) {
+        return;
+      }
+
+      setModelOptionsByProvider((prev) => {
+        const next = { ...prev };
+        entries.forEach(([id, models]) => {
+          next[id] = models;
+        });
+        return next;
+      });
+    };
+
+    void load();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [apiKey, baseUrl]);
+
+  useEffect(() => {
+    if (typeof globalThis.localStorage === 'undefined') {
+      return;
+    }
+    const payload: LabPreferences = {
+      providerId,
+      model,
+      apiKey,
+      baseUrl,
+    };
+    globalThis.localStorage.setItem(LAB_PREFS_KEY, JSON.stringify(payload));
+  }, [providerId, model, apiKey, baseUrl]);
 
   const cancel = (): void => {
     abortRef.current?.abort();
@@ -117,32 +254,26 @@ export function LabPage(): JSX.Element {
         <p>Prompt -&gt; LLM Texo Stream -&gt; Built-in UI rendering</p>
       </header>
 
-      <div className="lab-grid">
+      <div className="lab-main-row">
         <article className="panel">
           <h3>Prompt</h3>
           <div className="lab-controls">
             <label>
-              Provider
+              Provider + Model
               <select
                 className="lab-select"
-                value={providerId}
-                onChange={(e) => onProviderChange(e.target.value as PlannerProviderId)}
+                value={selectedProviderModelValue}
+                onChange={(e) => onProviderModelChange(e.target.value)}
               >
-                {Object.values(plannerProviders).map((entry) => (
-                  <option key={entry.id} value={entry.id}>
-                    {entry.label}
+                {providerModelOptions.map((option) => (
+                  <option
+                    key={`${option.providerId}-${option.model}`}
+                    value={`${option.providerId}::${option.model}`}
+                  >
+                    {option.providerLabel} / {option.model}
                   </option>
                 ))}
               </select>
-            </label>
-            <label>
-              Model
-              <input
-                value={model}
-                onChange={(e) => setModel(e.target.value)}
-                className="lab-input"
-                placeholder={provider.defaultModel}
-              />
             </label>
             <label>
               Base URL (optional)
@@ -194,28 +325,6 @@ export function LabPage(): JSX.Element {
         </article>
 
         <article className="panel">
-          <h3>Built-in Catalog</h3>
-          <ul className="lab-catalog">
-            {BUILTIN_COMPONENT_CATALOG.map((item: CatalogComponent) => (
-              <li key={item.name}>
-                <strong>{item.name}</strong>
-                <p>{item.summary}</p>
-              </li>
-            ))}
-          </ul>
-        </article>
-
-        <article className="panel">
-          <h3>Texo System Prompt</h3>
-          <pre className="chat-box">{systemPromptPreview}</pre>
-        </article>
-
-        <article className="panel">
-          <h3>Texo Stream</h3>
-          <pre className="chat-box">{streamTextValue || 'LLM texo stream appears here.'}</pre>
-        </article>
-
-        <article className="panel">
           <h3>Rendered UI</h3>
           <TexoRenderer
             content={streamTextValue}
@@ -225,13 +334,37 @@ export function LabPage(): JSX.Element {
             onError={(event) => setRecoveryEvents((prev) => [...prev, event])}
           />
         </article>
+      </div>
 
-        <article className="panel">
-          <h3>Interaction/Recovery Log</h3>
+      <div className="lab-details">
+        <details className="panel lab-detail">
+          <summary>Texo Stream</summary>
+          <pre className="chat-box">{streamTextValue || 'LLM texo stream appears here.'}</pre>
+        </details>
+
+        <details className="panel lab-detail">
+          <summary>Texo System Prompt</summary>
+          <pre className="chat-box">{systemPromptPreview}</pre>
+        </details>
+
+        <details className="panel lab-detail">
+          <summary>Built-in Catalog</summary>
+          <ul className="lab-catalog">
+            {BUILTIN_COMPONENT_CATALOG.map((item: CatalogComponent) => (
+              <li key={item.name}>
+                <strong>{item.name}</strong>
+                <p>{item.summary}</p>
+              </li>
+            ))}
+          </ul>
+        </details>
+
+        <details className="panel lab-detail">
+          <summary>Interaction/Recovery Log</summary>
           <pre className="chat-box">
             {JSON.stringify({ actions, recoveryEvents }, null, 2) || 'No events yet.'}
           </pre>
-        </article>
+        </details>
       </div>
     </section>
   );

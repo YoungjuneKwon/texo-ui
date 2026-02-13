@@ -4,6 +4,6 @@ export const inventoryScenario: Scenario = {
   id: 'inventory',
   name: 'RPG Inventory',
   category: 'casual',
-  systemPrompt: 'Generate a drag-and-drop RPG inventory.',
-  content: `Manage your inventory.\n\n::: inventory-grid\ncolumns: 4\nslots: 16\nitems:\n  - id: "potion"\n    name: "Health Potion"\n    icon: "🧪"\n    quantity: 3\n    rarity: "common"\n    description: "HP +50"\n    slot: 0\n  - id: "sword"\n    name: "Flame Sword"\n    icon: "⚔️"\n    quantity: 1\n    rarity: "legendary"\n    description: "ATK +120"\n    slot: 1\nactions:\n  - "use"\n  - "drop"\n  - "inspect"\n:::`,
+  systemPrompt: 'Generate inventory management UI using texo-table, texo-button, texo-chart.',
+  content: `Manage your inventory\n\n::: texo-table\ncolumns: ["item", "qty", "rarity"]\nrows:\n  - item: "Health Potion"\n    qty: 3\n    rarity: "common"\n  - item: "Flame Sword"\n    qty: 1\n    rarity: "legendary"\n  - item: "Mana Elixir"\n    qty: 5\n    rarity: "rare"\n:::\n\n::: texo-button\nlabel: "Use Potion"\naction: "use-potion"\nvariant: "primary"\n:::\n\n::: texo-button\nlabel: "Inspect Sword"\naction: "inspect-sword"\nvariant: "secondary"\n:::\n\n::: texo-chart\nchartType: "bar"\nlabels: ["Common", "Rare", "Legendary"]\nseries:\n  - name: "items"\n    values: [10, 6, 2]\n:::`,
 };
