@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { DirectiveComponentProps } from '../../shared';
 import { useDirectiveAction } from '../../shared';
 import type { TournamentBracketAttributes } from './types';
@@ -17,9 +17,21 @@ export function TournamentBracket({
   onAction,
 }: DirectiveComponentProps<TournamentBracketAttributes>): JSX.Element {
   const emit = useDirectiveAction(onAction);
-  const [current, setCurrent] = useState<string[]>(attributes.items ?? []);
+  const initialItems = useMemo(
+    () =>
+      (Array.isArray(attributes.items) ? attributes.items : []).filter(
+        (item): item is string => typeof item === 'string' && item.length > 0,
+      ),
+    [attributes.items],
+  );
+  const [current, setCurrent] = useState<string[]>(initialItems);
   const [winners, setWinners] = useState<string[]>([]);
   const pairs = useMemo(() => pairItems(current), [current]);
+
+  useEffect(() => {
+    setCurrent(initialItems);
+    setWinners([]);
+  }, [initialItems]);
 
   const pickWinner = (winner: string): void => {
     const nextWinners = [...winners, winner];

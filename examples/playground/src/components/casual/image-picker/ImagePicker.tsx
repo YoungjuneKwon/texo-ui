@@ -8,12 +8,20 @@ export function ImagePicker({
   onAction,
 }: DirectiveComponentProps<ImagePickerAttributes>): JSX.Element {
   const emit = useDirectiveAction(onAction);
-  const max = attributes.maxSelect ?? 3;
+  const mode = attributes.mode === 'single' ? 'single' : 'multi-select';
+  const options = (attributes.options ?? []).filter(
+    (option): option is ImagePickerAttributes['options'][number] =>
+      Boolean(option && typeof option === 'object' && typeof option.id === 'string'),
+  );
+  const max =
+    typeof attributes.maxSelect === 'number' && Number.isFinite(attributes.maxSelect)
+      ? Math.max(1, Math.floor(attributes.maxSelect))
+      : 3;
   const [selected, setSelected] = useState<string[]>([]);
 
   const toggle = (id: string): void => {
     const has = selected.includes(id);
-    if (attributes.mode === 'single') {
+    if (mode === 'single') {
       setSelected([id]);
       return;
     }
@@ -30,7 +38,7 @@ export function ImagePicker({
         className="mt-4 grid gap-3"
         style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(120px,1fr))' }}
       >
-        {attributes.options.map((option) => {
+        {options.map((option) => {
           const isOn = selected.includes(option.id);
           return (
             <button

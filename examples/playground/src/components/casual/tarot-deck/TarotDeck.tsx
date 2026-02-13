@@ -11,9 +11,21 @@ export function TarotDeck({
   onAction,
 }: DirectiveComponentProps<TarotDeckAttributes>): JSX.Element {
   const emit = useDirectiveAction(onAction);
-  const count = attributes.cardCount ?? 3;
-  const mode = attributes.mode ?? 'pick';
+  const count =
+    typeof attributes.cardCount === 'number' && Number.isFinite(attributes.cardCount)
+      ? Math.max(1, Math.floor(attributes.cardCount))
+      : 3;
+  const mode = attributes.mode === 'reveal' ? 'reveal' : 'pick';
   const [picked, setPicked] = useState<number[]>([]);
+  const revealCards = useMemo(
+    () =>
+      (Array.isArray(attributes.cards) ? attributes.cards : []).filter(
+        (card): card is NonNullable<TarotDeckAttributes['cards']>[number] => {
+          return Boolean(card && typeof card === 'object');
+        },
+      ),
+    [attributes.cards],
+  );
   const placeholders = useMemo(
     () => Array.from({ length: Math.max(3, count) }, (_, i) => i),
     [count],
@@ -45,7 +57,8 @@ export function TarotDeck({
         className="mt-4 grid gap-2.5"
         style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(100px,1fr))' }}
       >
-        {(mode === 'reveal' ? (attributes.cards ?? []) : placeholders).map((card, idx) => {
+        {(mode === 'reveal' ? revealCards : placeholders).map((card, idx) => {
+          const cardData = card && typeof card === 'object' ? card : undefined;
           const revealed = mode === 'reveal';
           const selected = picked.includes(idx);
           return (
@@ -58,16 +71,15 @@ export function TarotDeck({
               }`}
               style={{
                 background: revealed ? '#111827' : '#312e81',
-                transform:
-                  revealed && (card as { reversed?: boolean }).reversed ? 'rotate(180deg)' : 'none',
+                transform: revealed && cardData?.reversed ? 'rotate(180deg)' : 'none',
                 transition: 'transform .5s ease, opacity .3s ease',
               }}
             >
               {revealed ? (
                 <>
-                  <div className="font-medium">{(card as { name?: string }).name}</div>
+                  <div className="font-medium">{cardData?.name ?? 'Unknown card'}</div>
                   <small className="mt-1 block text-xs text-slate-200">
-                    {(card as { meaning?: string }).meaning}
+                    {cardData?.meaning ?? ''}
                   </small>
                 </>
               ) : (

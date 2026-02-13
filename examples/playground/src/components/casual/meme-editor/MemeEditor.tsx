@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { DirectiveComponentProps } from '../../shared';
 import { useDirectiveAction } from '../../shared';
 import type { MemeEditorAttributes } from './types';
@@ -8,11 +8,29 @@ export function MemeEditor({
   onAction,
 }: DirectiveComponentProps<MemeEditorAttributes>): JSX.Element {
   const emit = useDirectiveAction(onAction);
-  const [texts, setTexts] = useState(attributes.textBoxes ?? []);
+  const safeTextBoxes = useMemo(
+    () =>
+      (Array.isArray(attributes.textBoxes) ? attributes.textBoxes : [])
+        .filter((box): box is NonNullable<MemeEditorAttributes['textBoxes']>[number] => {
+          return Boolean(box && typeof box === 'object');
+        })
+        .map((box) => ({
+          text: typeof box.text === 'string' ? box.text : '',
+          position: box.position,
+          fontSize: typeof box.fontSize === 'number' ? box.fontSize : undefined,
+          color: typeof box.color === 'string' ? box.color : undefined,
+        })),
+    [attributes.textBoxes],
+  );
+  const [texts, setTexts] = useState(safeTextBoxes);
   const size = useMemo(
     () => ({ width: attributes.width ?? 600, height: attributes.height ?? 400 }),
     [attributes.height, attributes.width],
   );
+
+  useEffect(() => {
+    setTexts(safeTextBoxes);
+  }, [safeTextBoxes]);
 
   const updateText = (idx: number, text: string): void => {
     setTexts((prev) => prev.map((row, i) => (i === idx ? { ...row, text } : row)));

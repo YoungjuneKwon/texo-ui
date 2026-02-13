@@ -25,6 +25,7 @@ export interface TexoRendererProps {
   registry?: RegistryInput;
   fallback?: React.ComponentType<FallbackProps>;
   errorFallback?: React.ComponentType<ErrorFallbackProps>;
+  errorResetKeys?: readonly unknown[];
   streamOptions?: UseTexoStreamOptions;
   className?: string;
   style?: React.CSSProperties;
@@ -75,7 +76,11 @@ export function TexoRenderer(props: TexoRendererProps): React.ReactElement {
   }
 
   return (
-    <TexoErrorBoundary fallback={props.errorFallback} lastValidAST={lastValidASTRef.current}>
+    <TexoErrorBoundary
+      fallback={props.errorFallback}
+      lastValidAST={lastValidASTRef.current}
+      resetKeys={props.errorResetKeys ?? [props.content]}
+    >
       <TexoContext.Provider value={{ registry, dispatch }}>
         <div className={props.className} style={props.style}>
           {reconcile(resolvedAST, registry, props.fallback)}
