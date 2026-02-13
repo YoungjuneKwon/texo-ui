@@ -184,6 +184,119 @@ export function TexoChart(props: Record<string, unknown>): React.ReactElement {
         )
       : [];
   const max = Math.max(...values, 1);
+  const total = values.reduce((sum, value) => sum + value, 0);
+
+  if (chartType === 'pie' || chartType === 'donut') {
+    const palette = ['#2563eb', '#0ea5e9', '#14b8a6', '#22c55e', '#f59e0b', '#ef4444'];
+    const gradientStops = values
+      .map((value, index) => {
+        const start = values.slice(0, index).reduce((sum, current) => sum + current, 0);
+        const startPct = total > 0 ? Math.round((start / total) * 100) : 0;
+        const endPct = total > 0 ? Math.round(((start + value) / total) * 100) : 0;
+        const color = palette[index % palette.length];
+        return `${color} ${startPct}% ${endPct}%`;
+      })
+      .join(', ');
+    const ringMask =
+      chartType === 'donut'
+        ? 'radial-gradient(circle at center, transparent 43%, #000 44%)'
+        : undefined;
+
+    return (
+      <section style={shellStyle}>
+        <h3 style={{ margin: 0, marginBottom: 10 }}>Chart ({chartType})</h3>
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: '120px 1fr',
+            gap: 12,
+            alignItems: 'center',
+          }}
+        >
+          <div
+            style={{
+              width: 120,
+              height: 120,
+              borderRadius: '50%',
+              background: gradientStops ? `conic-gradient(${gradientStops})` : '#e5e7eb',
+              WebkitMaskImage: ringMask,
+              maskImage: ringMask,
+            }}
+          />
+          <div style={{ display: 'grid', gap: 6 }}>
+            {labels.map((label, index) => {
+              const value = values[index] ?? 0;
+              const share = total > 0 ? Math.round((value / total) * 100) : 0;
+              const color = palette[index % palette.length];
+              return (
+                <div
+                  key={label}
+                  style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12 }}
+                >
+                  <span
+                    aria-hidden="true"
+                    style={{
+                      width: 10,
+                      height: 10,
+                      borderRadius: 999,
+                      background: color,
+                      display: 'inline-block',
+                    }}
+                  />
+                  <span style={{ flex: 1 }}>{label}</span>
+                  <span>
+                    {value} ({share}%)
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  if (chartType === 'line') {
+    const width = 260;
+    const height = 120;
+    const points = values
+      .map((value, index) => {
+        const x = labels.length > 1 ? (index / (labels.length - 1)) * width : width / 2;
+        const y = height - (value / max) * (height - 10) - 5;
+        return `${x},${Math.round(y)}`;
+      })
+      .join(' ');
+
+    return (
+      <section style={shellStyle}>
+        <h3 style={{ margin: 0, marginBottom: 8 }}>Chart (line)</h3>
+        <svg
+          viewBox={`0 0 ${width} ${height}`}
+          style={{ width: '100%', maxWidth: 340 }}
+          role="img"
+          aria-label="Line chart"
+        >
+          <polyline fill="none" stroke="#2563eb" strokeWidth="3" points={points} />
+          {values.map((value, index) => {
+            const x = labels.length > 1 ? (index / (labels.length - 1)) * width : width / 2;
+            const y = height - (value / max) * (height - 10) - 5;
+            return <circle key={`${labels[index] ?? index}`} cx={x} cy={y} r="4" fill="#0ea5e9" />;
+          })}
+        </svg>
+        <div style={{ display: 'grid', gap: 4, marginTop: 6 }}>
+          {labels.map((label, index) => (
+            <div
+              key={label}
+              style={{ fontSize: 12, display: 'flex', justifyContent: 'space-between' }}
+            >
+              <span>{label}</span>
+              <span>{values[index] ?? 0}</span>
+            </div>
+          ))}
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section style={shellStyle}>
