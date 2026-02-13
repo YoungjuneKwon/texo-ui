@@ -36,17 +36,14 @@ export function TarotDeck({
   };
 
   return (
-    <section style={{ border: '1px solid #ddd', borderRadius: 12, padding: 16 }}>
-      <h3>Tarot Deck · {mode}</h3>
-      <p style={{ color: '#666' }}>
+    <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <h3 className="text-lg font-semibold text-slate-900">Tarot Deck · {mode}</h3>
+      <p className="mt-1 text-sm text-slate-500">
         Spread: {attributes.spread ?? 'three-card'} · {status}
       </p>
       <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit,minmax(100px,1fr))',
-          gap: 10,
-        }}
+        className="mt-4 grid gap-2.5"
+        style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(100px,1fr))' }}
       >
         {(mode === 'reveal' ? (attributes.cards ?? []) : placeholders).map((card, idx) => {
           const revealed = mode === 'reveal';
@@ -56,12 +53,11 @@ export function TarotDeck({
               key={`tarot-${idx}`}
               type="button"
               onClick={() => togglePick(idx)}
+              className={`min-h-36 rounded-xl border px-2 py-3 text-white transition ${
+                selected ? 'border-sky-500 ring-2 ring-sky-100' : 'border-violet-300'
+              }`}
               style={{
-                minHeight: 140,
-                borderRadius: 10,
-                border: selected ? '2px solid #2563eb' : '1px solid #a78bfa',
                 background: revealed ? '#111827' : '#312e81',
-                color: 'white',
                 transform:
                   revealed && (card as { reversed?: boolean }).reversed ? 'rotate(180deg)' : 'none',
                 transition: 'transform .5s ease, opacity .3s ease',
@@ -69,11 +65,13 @@ export function TarotDeck({
             >
               {revealed ? (
                 <>
-                  <div>{(card as { name?: string }).name}</div>
-                  <small>{(card as { meaning?: string }).meaning}</small>
+                  <div className="font-medium">{(card as { name?: string }).name}</div>
+                  <small className="mt-1 block text-xs text-slate-200">
+                    {(card as { meaning?: string }).meaning}
+                  </small>
                 </>
               ) : (
-                <span style={{ fontSize: 28 }}>{CARD_BACK}</span>
+                <span className="text-3xl">{CARD_BACK}</span>
               )}
             </button>
           );

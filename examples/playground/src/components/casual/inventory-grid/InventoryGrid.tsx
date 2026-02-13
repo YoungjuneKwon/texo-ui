@@ -30,9 +30,12 @@ export function InventoryGrid({
   };
 
   return (
-    <section style={{ border: '1px solid #ddd', borderRadius: 12, padding: 16 }}>
-      <h3>Inventory Grid</h3>
-      <div style={{ display: 'grid', gridTemplateColumns: `repeat(${columns}, 1fr)`, gap: 8 }}>
+    <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <h3 className="text-lg font-semibold text-slate-900">Inventory Grid</h3>
+      <div
+        className="mt-4 grid gap-2"
+        style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
+      >
         {Array.from({ length: slots }, (_, slot) => {
           const item = slotItems.get(slot);
           return (
@@ -40,27 +43,30 @@ export function InventoryGrid({
               key={`slot-${slot}`}
               draggable={Boolean(item)}
               onDragStart={() => item && setDragging(item)}
+              className="relative grid aspect-square place-items-center rounded-xl bg-slate-50"
               style={{
-                aspectRatio: '1/1',
-                borderRadius: 8,
                 border: item ? `2px solid ${rarityBorder[item.rarity]}` : '1px dashed #d1d5db',
-                display: 'grid',
-                placeItems: 'center',
-                position: 'relative',
               }}
               title={item ? `${item.name} · ${item.description ?? ''}` : 'Empty slot'}
             >
-              <span style={{ fontSize: 22 }}>{item?.icon ?? ''}</span>
+              <span className="text-2xl">{item?.icon ?? ''}</span>
               {item ? (
-                <small style={{ position: 'absolute', bottom: 4, right: 6 }}>{item.quantity}</small>
+                <small className="absolute bottom-1 right-1.5 rounded-md bg-white/80 px-1.5 py-0.5 text-xs font-semibold text-slate-700">
+                  {item.quantity}
+                </small>
               ) : null}
             </div>
           );
         })}
       </div>
-      <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+      <div className="mt-4 flex flex-wrap gap-2">
         {(attributes.actions ?? ['use', 'drop', 'inspect']).map((action) => (
-          <button key={action} type="button" onClick={() => triggerAction(action)}>
+          <button
+            key={action}
+            type="button"
+            onClick={() => triggerAction(action)}
+            className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
+          >
             {action}
           </button>
         ))}

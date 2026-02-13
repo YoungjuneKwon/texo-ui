@@ -19,19 +19,16 @@ export function MemeEditor({
   };
 
   return (
-    <section style={{ border: '1px solid #ddd', borderRadius: 12, padding: 16 }}>
-      <h3>Meme Editor</h3>
+    <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <h3 className="text-lg font-semibold text-slate-900">Meme Editor</h3>
       <div
+        className="relative mt-4 w-full overflow-hidden rounded-xl border border-slate-200"
         style={{
-          position: 'relative',
-          width: '100%',
           maxWidth: size.width,
           aspectRatio: `${size.width}/${size.height}`,
           background: attributes.backgroundImage
             ? `url(${attributes.backgroundImage}) center/cover`
             : '#111',
-          borderRadius: 10,
-          overflow: 'hidden',
         }}
       >
         {texts.map((box, idx) => (
@@ -39,16 +36,11 @@ export function MemeEditor({
             key={`meme-text-${idx}`}
             value={box.text}
             onChange={(e) => updateText(idx, e.target.value)}
+            className="absolute left-[10%] right-[10%] border border-dashed border-white/50 bg-black/15 px-2 py-1 text-center font-semibold text-white outline-none placeholder:text-white/70"
             style={{
-              position: 'absolute',
-              left: '10%',
-              right: '10%',
               top: box.position === 'top' ? '8%' : box.position === 'bottom' ? '80%' : '45%',
-              textAlign: 'center',
-              background: 'transparent',
               color: box.color ?? '#fff',
               fontSize: box.fontSize ?? 28,
-              border: '1px dashed rgba(255,255,255,.4)',
             }}
           />
         ))}
@@ -56,7 +48,7 @@ export function MemeEditor({
       <button
         type="button"
         onClick={() => emit({ type: 'download', directive: 'meme-editor', value: texts })}
-        style={{ marginTop: 12 }}
+        className="mt-4 rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800"
       >
         Download PNG
       </button>

@@ -24,14 +24,11 @@ export function ImagePicker({
   };
 
   return (
-    <section style={{ border: '1px solid #ddd', borderRadius: 12, padding: 16 }}>
-      <h3>{attributes.title ?? 'Image Picker'}</h3>
+    <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <h3 className="text-lg font-semibold text-slate-900">{attributes.title ?? 'Image Picker'}</h3>
       <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit,minmax(120px,1fr))',
-          gap: 12,
-        }}
+        className="mt-4 grid gap-3"
+        style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(120px,1fr))' }}
       >
         {attributes.options.map((option) => {
           const isOn = selected.includes(option.id);
@@ -40,20 +37,21 @@ export function ImagePicker({
               key={option.id}
               type="button"
               onClick={() => toggle(option.id)}
-              style={{
-                borderRadius: 10,
-                border: isOn ? '2px solid #2563eb' : '1px solid #ccc',
-                padding: 4,
-                background: '#fff',
-              }}
+              className={`rounded-xl border bg-white p-1.5 text-left transition ${
+                isOn
+                  ? 'border-sky-500 ring-2 ring-sky-100'
+                  : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+              }`}
             >
               <img
                 src={option.image}
                 alt={option.label}
                 loading="lazy"
-                style={{ width: '100%', aspectRatio: '1/1', objectFit: 'cover', borderRadius: 8 }}
+                className="aspect-square w-full rounded-lg object-cover"
               />
-              <div>{option.label}</div>
+              <div className="px-1 pb-1 pt-2 text-sm font-medium text-slate-700">
+                {option.label}
+              </div>
             </button>
           );
         })}
@@ -61,7 +59,7 @@ export function ImagePicker({
       <button
         type="button"
         onClick={() => emit({ type: 'confirm', directive: 'image-picker', value: selected })}
-        style={{ marginTop: 12 }}
+        className="mt-4 rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800"
       >
         Confirm
       </button>

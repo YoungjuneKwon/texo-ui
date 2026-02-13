@@ -34,29 +34,22 @@ export function TournamentBracket({
   };
 
   return (
-    <section style={{ border: '1px solid #ddd', borderRadius: 12, padding: 16 }}>
-      <h3>{attributes.title ?? 'Tournament Bracket'}</h3>
-      <p style={{ color: '#666' }}>
+    <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <h3 className="text-lg font-semibold text-slate-900">
+        {attributes.title ?? 'Tournament Bracket'}
+      </h3>
+      <p className="mt-1 text-sm text-slate-500">
         Round {Math.max(1, attributes.round ?? Math.log2(Math.max(current.length, 1)))} · {status}
       </p>
-      <div style={{ display: 'grid', gap: 12 }}>
+      <div className="mt-4 grid gap-3">
         {pairs.map((pair, idx) => (
-          <div
-            key={`pair-${idx}`}
-            style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}
-          >
+          <div key={`pair-${idx}`} className="grid grid-cols-2 gap-2">
             {pair.map((item) => (
               <button
                 key={item}
                 type="button"
                 onClick={() => pickWinner(item)}
-                style={{
-                  padding: '10px 12px',
-                  borderRadius: 10,
-                  border: '1px solid #bbb',
-                  cursor: 'pointer',
-                  transition: 'all .2s ease',
-                }}
+                className="rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
               >
                 {item}
               </button>
