@@ -220,6 +220,7 @@ export function LabPage(): JSX.Element {
           <TexoRenderer
             content={streamTextValue}
             registry={registry}
+            trimLeadingTextBeforeDirective
             onAction={(action) => setActions((prev) => [...prev, action])}
             onError={(event) => setRecoveryEvents((prev) => [...prev, event])}
           />

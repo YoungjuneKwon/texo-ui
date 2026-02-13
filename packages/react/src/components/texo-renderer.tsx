@@ -1,4 +1,4 @@
-import type { RecoveryEvent, RootNode } from '@texo-ui/core';
+import type { ASTNode, RecoveryEvent, RootNode } from '@texo-ui/core';
 import React, { useEffect, useMemo, useRef } from 'react';
 import { useTexoAction } from '../hooks';
 import { useTexoStream } from '../hooks/use-texo-stream';
@@ -26,11 +26,23 @@ export interface TexoRendererProps {
   fallback?: React.ComponentType<FallbackProps>;
   errorFallback?: React.ComponentType<ErrorFallbackProps>;
   errorResetKeys?: readonly unknown[];
+  trimLeadingTextBeforeDirective?: boolean;
   streamOptions?: UseTexoStreamOptions;
   className?: string;
   style?: React.CSSProperties;
   onAction?: (action: TexoAction) => void;
   onError?: (error: RecoveryEvent) => void;
+}
+
+function trimLeadingNodesBeforeFirstDirective(root: RootNode): RootNode {
+  const firstDirectiveIndex = root.children.findIndex((node: ASTNode) => node.type === 'directive');
+  if (firstDirectiveIndex <= 0) {
+    return root;
+  }
+  return {
+    ...root,
+    children: root.children.slice(firstDirectiveIndex),
+  };
 }
 
 function resolveRegistry(input?: RegistryInput): ComponentRegistry {
@@ -71,8 +83,11 @@ export function TexoRenderer(props: TexoRendererProps): React.ReactElement {
   }, [errors, props.onError]);
 
   const resolvedAST = typeof props.content === 'string' || !props.content ? ast : props.content;
-  if (resolvedAST.children.length > 0) {
-    lastValidASTRef.current = resolvedAST;
+  const renderAST = props.trimLeadingTextBeforeDirective
+    ? trimLeadingNodesBeforeFirstDirective(resolvedAST)
+    : resolvedAST;
+  if (renderAST.children.length > 0) {
+    lastValidASTRef.current = renderAST;
   }
 
   return (
@@ -83,7 +98,7 @@ export function TexoRenderer(props: TexoRendererProps): React.ReactElement {
     >
       <TexoContext.Provider value={{ registry, dispatch }}>
         <div className={props.className} style={props.style}>
-          {reconcile(resolvedAST, registry, props.fallback)}
+          {reconcile(renderAST, registry, props.fallback)}
         </div>
       </TexoContext.Provider>
     </TexoErrorBoundary>
