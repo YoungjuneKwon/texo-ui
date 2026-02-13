@@ -321,55 +321,184 @@ export function TexoChart(props: Record<string, unknown>): React.ReactElement {
   }
 
   if (chartType === 'line') {
-    const width = 260;
-    const height = 120;
-    const points = values
-      .map((value, index) => {
-        const x = labels.length > 1 ? (index / (labels.length - 1)) * width : width / 2;
-        const y = height - (value / max) * (height - 10) - 5;
-        return `${x},${Math.round(y)}`;
-      })
+    const chartLabels = values.map((_, index) => labels[index] ?? String(index + 1));
+    const min = values.length > 0 ? Math.min(...values) : 0;
+    const maxValue = values.length > 0 ? Math.max(...values) : 1;
+    const range = Math.max(maxValue - min, 1);
+    const width = 640;
+    const height = 260;
+    const left = 44;
+    const right = 14;
+    const top = 18;
+    const bottom = 36;
+    const plotWidth = width - left - right;
+    const plotHeight = height - top - bottom;
+
+    const points = values.map((value, index) => {
+      const x =
+        values.length > 1 ? left + (index / (values.length - 1)) * plotWidth : left + plotWidth / 2;
+      const y = top + ((maxValue - value) / range) * plotHeight;
+      return { x, y, value };
+    });
+
+    const linePath = points
+      .map(
+        (point, index) => `${index === 0 ? 'M' : 'L'} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`,
+      )
       .join(' ');
+
+    const areaPath =
+      points.length > 0
+        ? `${linePath} L ${points[points.length - 1].x.toFixed(2)} ${(top + plotHeight).toFixed(2)} L ${points[0].x.toFixed(2)} ${(top + plotHeight).toFixed(2)} Z`
+        : '';
+
+    const yTicks = Array.from({ length: 5 }, (_, index) => {
+      const ratio = index / 4;
+      const value = maxValue - ratio * range;
+      const y = top + ratio * plotHeight;
+      return { value, y };
+    });
+
+    const xTickStep = Math.max(1, Math.ceil(chartLabels.length / 6));
+    const xTicks = chartLabels
+      .map((label, index) => ({ label, index }))
+      .filter((entry, idx) => idx % xTickStep === 0 || idx === chartLabels.length - 1)
+      .map((entry) => ({
+        label: entry.label,
+        x:
+          values.length > 1
+            ? left + (entry.index / (values.length - 1)) * plotWidth
+            : left + plotWidth / 2,
+      }));
+
+    const first = values[0] ?? 0;
+    const last = values[values.length - 1] ?? 0;
+    const delta = last - first;
+    const deltaSign = delta >= 0 ? '+' : '';
 
     return (
       <section style={shellStyle}>
-        <h3 style={{ margin: 0, marginBottom: 8 }}>Chart (line)</h3>
+        <h3 style={{ margin: 0, marginBottom: 10 }}>Chart (line)</h3>
         <svg
           viewBox={`0 0 ${width} ${height}`}
-          style={{ width: '100%', maxWidth: 340 }}
+          style={{ width: '100%' }}
           role="img"
           aria-label="Line chart"
         >
-          <polyline
-            fill="none"
-            stroke="var(--texo-theme-accent, #2563eb)"
-            strokeWidth="3"
-            points={points}
-          />
-          {values.map((value, index) => {
-            const x = labels.length > 1 ? (index / (labels.length - 1)) * width : width / 2;
-            const y = height - (value / max) * (height - 10) - 5;
+          {yTicks.map((tick) => (
+            <g key={`y-${tick.y}`}>
+              <line
+                x1={left}
+                y1={tick.y}
+                x2={left + plotWidth}
+                y2={tick.y}
+                stroke="var(--texo-theme-line, #334155)"
+                strokeWidth="1"
+                opacity="0.35"
+              />
+              <text
+                x={left - 6}
+                y={tick.y + 4}
+                textAnchor="end"
+                fontSize="11"
+                fill="var(--texo-theme-foreground, #e2e8f0)"
+                opacity="0.8"
+              >
+                {tick.value.toFixed(1)}
+              </text>
+            </g>
+          ))}
+          {xTicks.map((tick) => (
+            <text
+              key={`x-${tick.label}-${tick.x}`}
+              x={tick.x}
+              y={height - 10}
+              textAnchor="middle"
+              fontSize="11"
+              fill="var(--texo-theme-foreground, #e2e8f0)"
+              opacity="0.8"
+            >
+              {tick.label}
+            </text>
+          ))}
+          {areaPath ? (
+            <path d={areaPath} fill="var(--texo-theme-accent, #60a5fa)" opacity="0.16" />
+          ) : null}
+          {linePath ? (
+            <path
+              d={linePath}
+              fill="none"
+              stroke="var(--texo-theme-accent, #60a5fa)"
+              strokeWidth="3"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          ) : null}
+          {points.map((point, index) => {
+            const isEdge = index === 0 || index === points.length - 1;
+            const isMajor = index % xTickStep === 0;
+            if (!isEdge && !isMajor) {
+              return null;
+            }
             return (
               <circle
-                key={`${labels[index] ?? index}`}
-                cx={x}
-                cy={y}
-                r="4"
-                fill="var(--texo-theme-accent, #0ea5e9)"
+                key={`dot-${index}`}
+                cx={point.x}
+                cy={point.y}
+                r={isEdge ? 4.5 : 3.5}
+                fill="var(--texo-theme-accent, #60a5fa)"
+                stroke="var(--texo-theme-background, #0b1220)"
+                strokeWidth="2"
               />
             );
           })}
         </svg>
-        <div style={{ display: 'grid', gap: 4, marginTop: 6 }}>
-          {labels.map((label, index) => (
-            <div
-              key={label}
-              style={{ fontSize: 12, display: 'flex', justifyContent: 'space-between' }}
-            >
-              <span>{label}</span>
-              <span>{values[index] ?? 0}</span>
+        <div
+          style={{
+            marginTop: 10,
+            display: 'grid',
+            gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+            gap: 8,
+          }}
+        >
+          <div
+            style={{
+              border: '1px solid var(--texo-theme-line, #334155)',
+              borderRadius: 'var(--texo-theme-radius, 10px)',
+              padding: 8,
+              fontSize: 12,
+            }}
+          >
+            <strong>Latest</strong>
+            <div>{last.toFixed(1)}%</div>
+          </div>
+          <div
+            style={{
+              border: '1px solid var(--texo-theme-line, #334155)',
+              borderRadius: 'var(--texo-theme-radius, 10px)',
+              padding: 8,
+              fontSize: 12,
+            }}
+          >
+            <strong>30d Delta</strong>
+            <div>
+              {deltaSign}
+              {delta.toFixed(1)}%
             </div>
-          ))}
+          </div>
+          <div
+            style={{
+              border: '1px solid var(--texo-theme-line, #334155)',
+              borderRadius: 'var(--texo-theme-radius, 10px)',
+              padding: 8,
+              fontSize: 12,
+            }}
+          >
+            <strong>Range</strong>
+            <div>
+              {min.toFixed(1)}% - {maxValue.toFixed(1)}%
+            </div>
+          </div>
         </div>
       </section>
     );
